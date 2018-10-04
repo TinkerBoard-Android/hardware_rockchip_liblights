@@ -34,7 +34,8 @@
 #define LOGE(fmt,args...) ALOGE(fmt,##args)
 
 /*****************************************************************************/
-#define BACKLIGHT_PATH  "/sys/class/backlight/rk28_bl/brightness"
+//#define BACKLIGHT_PATH  "/sys/class/backlight/rk28_bl/brightness"
+#define BACKLIGHT_PATH  "/sys/devices/platform/ff150000.i2c/i2c-3/3-0045/tinker_mcu_bl"
 #define BACKLIGHT_PATH1 "/sys/class/backlight/backlight/brightness" // for kernel 4.4
 #define BUTTON_LED_PATH "sys/class/leds/rk29_key_led/brightness"
 #define BATTERY_LED_PATH "sys/class/leds/battery_led/brightness"
@@ -43,6 +44,7 @@ int g_btn_fd = 0; //button light fd
 int g_bat_fd = 0; //battery charger fd
 static pthread_once_t g_init = PTHREAD_ONCE_INIT;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
+static int tinker_backlight_node_exist = 1;
 
 static int light_device_open(const struct hw_module_t* module, const char* name, struct hw_device_t** device);
 
@@ -89,9 +91,19 @@ int set_backlight_light(struct light_device_t* dev, struct light_state_t const* 
     int err = 0;
     int brightness = rgb_to_brightness(state);
     pthread_mutex_lock(&g_lock);
+#if 0
     err = write_int(BACKLIGHT_PATH, brightness);
     if (err !=0)
         err = write_int(BACKLIGHT_PATH1, brightness);
+#endif
+    if(tinker_backlight_node_exist)
+        err = write_int(BACKLIGHT_PATH, brightness);
+
+    if(-ENOENT == err) {
+        tinker_backlight_node_exist = 0;
+        LOGE("Tinker LCD is not connected, and %s is not exist\n", BACKLIGHT_PATH);
+    }
+
     pthread_mutex_unlock(&g_lock);
     return 0;
 }
