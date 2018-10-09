@@ -90,14 +90,21 @@ int set_backlight_light(struct light_device_t* dev, struct light_state_t const* 
 {
     int err = 0;
     int brightness = rgb_to_brightness(state);
+    int level;
     pthread_mutex_lock(&g_lock);
+
+    if (brightness <= 12)
+		level = 12;
+	else
+		level = brightness;
+
 #if 0
     err = write_int(BACKLIGHT_PATH, brightness);
     if (err !=0)
         err = write_int(BACKLIGHT_PATH1, brightness);
 #endif
     if(tinker_backlight_node_exist)
-        err = write_int(BACKLIGHT_PATH, brightness);
+        err = write_int(BACKLIGHT_PATH, level);
 
     if(-ENOENT == err) {
         tinker_backlight_node_exist = 0;
