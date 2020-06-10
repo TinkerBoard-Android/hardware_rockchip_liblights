@@ -34,8 +34,8 @@
 #define LOGE(fmt,args...) ALOGE(fmt,##args)
 
 /*****************************************************************************/
-//#define BACKLIGHT_PATH  "/sys/class/backlight/rk28_bl/brightness"
-#define BACKLIGHT_PATH  "/sys/devices/platform/ff150000.i2c/i2c-3/3-0045/tinker_mcu_bl"
+#define BACKLIGHT_PATH  "/sys/class/backlight/rk28_bl/brightness"
+#define TINKER_LCD_FILE "/sys/class/backlight/panel_backlight/brightness"
 #define BACKLIGHT_PATH1 "/sys/class/backlight/backlight/brightness" // for kernel 4.4
 #define BUTTON_LED_PATH "sys/class/leds/rk29_key_led/brightness"
 #define BATTERY_LED_PATH "sys/class/leds/battery_led/brightness"
@@ -81,7 +81,7 @@ static int write_int(char const *path, int value)
 static int rgb_to_brightness(struct light_state_t const *state)
 {
     unsigned int color = state->color & 0x00ffffff;
-    unsigned char brightness = ((77*((color>>16)&0x00ff)) + 
+    unsigned char brightness = ((77*((color>>16)&0x00ff)) +
         (150*((color>>8)&0x00ff)) + (29*(color&0x00ff))) >> 8;
     return brightness;
 }
@@ -91,6 +91,7 @@ int set_backlight_light(struct light_device_t* dev, struct light_state_t const* 
     int err = 0;
     int brightness = rgb_to_brightness(state);
     int level;
+
     pthread_mutex_lock(&g_lock);
 
     if (brightness <= 12)
@@ -98,18 +99,13 @@ int set_backlight_light(struct light_device_t* dev, struct light_state_t const* 
 	else
 		level = brightness;
 
-#if 0
-    err = write_int(BACKLIGHT_PATH, brightness);
-    if (err !=0)
-        err = write_int(BACKLIGHT_PATH1, brightness);
-#endif
-    if(tinker_backlight_node_exist)
-        err = write_int(BACKLIGHT_PATH, level);
-
-    if(-ENOENT == err) {
-        tinker_backlight_node_exist = 0;
-        LOGE("Tinker LCD is not connected, and %s is not exist\n", BACKLIGHT_PATH);
-    }
+	if (access(TINKER_LCD_FILE, F_OK) == 0) {
+		err = write_int(TINKER_LCD_FILE, level);
+	} else {
+		err = write_int(BACKLIGHT_PATH, level);
+		if (err !=0)
+			err = write_int(BACKLIGHT_PATH1, level);
+	}
 
     pthread_mutex_unlock(&g_lock);
     return 0;
